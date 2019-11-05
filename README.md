@@ -2,7 +2,7 @@
 This repository contains the gem5 implementation of CleanupSpec, a defense mechanism against mis-speculated changes made to the caches.    
 Please check our paper for design details.
 
-CleanupSpec: An Undo Approach to Safe Speculation.
+CleanupSpec: An Undo Approach to Safe Speculation. (https://dl.acm.org/citation.cfm?id=3358314)
 Gururaj Saileshwar and Moinuddin Qureshi
 Proceedings of the 52nd International Symposium on Microarchitecture (**MICRO**), October 2019.
 
