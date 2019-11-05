@@ -1,0 +1,46 @@
+1. Randomize Cache (L2/L3)
+    - In structures/CacheMemory.hh : addressToCacheSet -> Randomize this with table.
+        0. Added the table & inv for pla -> ela
+        1. Generate a random mapping 1:1 for pla->ela (ela_table)
+        2. Use it to generate the line address in the func addressToCacheSet()
+        3. Figure out if line address stored in tag is (a) full line address, (b) PLA or ELA (c) if it is used for dirty writebacks on evicts.
+        4. Check the impact on Hitrate & Performance after simulation for 500Mn and 10Bn checkpoints and 4GB memory.
+        5. Check how is latency calculated. Modify the adding of 2 cycle latency to the lookup of L2.
+        6. Remap - Invalidate a random line every 100 accesses.
+
+2. Invalidate a Line from L1/L2/L3 on mis-speculation    
+    - Track L1/L2 Installs in CleanupBuffer
+        -*DONE* Configure CleanupBuffer similar to SpecBuffer 
+        -*DONE* Sync CB with LoadQ : When Load is retired from LoadQ, remove from CB
+        -*DONE* Identify statistics of Squashed Loads (L1/L2 installs Executed, Inflight, NonIssued)
+        - LATER-TODO: Histograms on :Time in servicing instructions squashes, # of squashed instructions, loads, L1/L2 installs per squash.
+
+    - Cleanup on Mis-speculation:
+        (a) TODO: Issue Dumb acks from Ruby MSHR to CPU for all cleanup requests received. Establish 2-way communication with LSQ.
+        (b) TODO: Track side-effects of all in-flight L1-Misses in MSHR.
+        (c) TODO: On receiving cleanup-req for in-flight loads, kill in-flight L1-Misses and restore side-effects. Only then send back Cleanup-ack.
+        (d) TODO: Code-up Random Replacement for L1-D Cache.
+        (e) LATER-TODO: For completed loads, send back the side-effects. So that they may be re-issued again as Cleanup request for those completed loads.
+
+       
+3. New Coherence Request for ReqIfPossible.
+    - Full System Simulation Checkpoints (with ARM & Linux Bootup)
+    - Track status in LD-bUffer (Delayed Bit)
+    - Coherence Request for ReqIfPossible.
+    - Re-Issue Regular Coherence Request.
+
+4. Invisispec Motivational Data and Write-up
+ 
+5. Energy evaluations?
+
+6. Security Evaluations
+
+7. Storage Calculation
+
+8. Roll-back L1-I Cache
+    - Track Installs in FIFO & issue invalidate on mis-speculation (coalesced)
+    - Track Evicts in FIFO & issue load for evicted line (coalesced)
+
+GLOBAL-TODO :
+    1. Smart MSHR - Tracks side-effects, rolls-back changes and sends back ack.
+    2. Coherence Requests - Create a new one for GetNoHarm
