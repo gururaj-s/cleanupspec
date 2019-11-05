@@ -2,12 +2,12 @@
 This repository contains the gem5 implementation of CleanupSpec, a defense mechanism against mis-speculated changes made to the caches.   
 
 Please check our paper for design details:  
-**CleanupSpec: An Undo Approach to Safe Speculation.** (https://dl.acm.org/citation.cfm?id=3358314)  
+[CleanupSpec: An Undo Approach to Safe Speculation](https://dl.acm.org/citation.cfm?id=3358314)  
 Gururaj Saileshwar and Moinuddin Qureshi  
 Proceedings of the 52nd International Symposium on Microarchitecture (**MICRO**), October 2019.  
   
-This is built on top of InvisiSpec's fork of Gem5 (Commit:39cfb85 from Nov 5, 2018)  
-(https://github.com/mjyan0720/InvisiSpec-1.0/tree/39cfb858d4b2e404282b54094f0220b8098053f6)  
+This is built on top of [InvisiSpec's fork of Gem5](https://github.com/mjyan0720/InvisiSpec-1.0/tree/39cfb858d4b2e404282b54094f0220b8098053f6) (Commit:39cfb85 from Nov 5, 2018)  
+
 
 **Requirements:**  
   * Python 2.7 or higher  
