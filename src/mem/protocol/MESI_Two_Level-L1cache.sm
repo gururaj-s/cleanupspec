@@ -162,6 +162,11 @@ MessageBuffer * mandatoryQueue;
     Inflight_CLEANUP_resp, desc="Reponse received from L2 for inflight cleanup. Cleanup will complete.";
     Drop_Load_Cleanup_Inflight, desc="On a Inflight Cleanup, Load that is not issued should be dropped";
     Skip_Inflight_Cleanup, desc="When a Load hasnt been Issued, Cleanup Should be Skipped & Ack issued immediately";
+
+    // [Flush]
+    Flush_L1L2, desc="Flush/Invalidate request from CPU, on a Clean Line";
+    Flush_L2, desc="Forward to L2 Invalidate request from CPU, on a Clean Line";
+    Flush_Waiting,   desc="Flush is waiting for Line to be installed.";
   }
 
   // TYPES
@@ -672,6 +677,37 @@ MessageBuffer * mandatoryQueue;
       peek(mandatoryQueue_in, RubyRequest, block_on="LineAddress") {
 
         DPRINTF(RubySlicc,"Mandatory  Queue has Addr:%#x of MsgType:%s\n",in_msg.LineAddress,in_msg.Type);  
+
+        // Check if FLUSH Request.
+        if (in_msg.Type == RubyRequestType:FLUSH) {
+          DPRINTF(RubySlicc, "RubyRequest FLUSH received at L1 for Addr %#x\n",in_msg.LineAddress) ;
+          Entry L1Icache_entry := getL1ICacheEntry(in_msg.LineAddress);
+          Entry L1Dcache_entry := getL1DCacheEntry(in_msg.LineAddress);
+          
+          //Check L1Icache
+          if(is_valid(L1Icache_entry)) {
+            DPRINTF(RubySlicc, "Issuing Flush to L1I and L2 - Addr %#x\n",in_msg.LineAddress,getState(TBEs[in_msg.LineAddress], L1Icache_entry, in_msg.LineAddress) );
+            trigger(Event:Flush_L1L2,in_msg.LineAddress,
+                    L1Icache_entry, TBEs[in_msg.LineAddress]);
+          }
+          
+          //Check L1Dcache
+          else if(is_valid(L1Dcache_entry)) {
+            DPRINTF(RubySlicc, "Issuing Flush to L1D and L2 - Addr %#x\n",in_msg.LineAddress,getState(TBEs[in_msg.LineAddress], L1Dcache_entry, in_msg.LineAddress) );
+            trigger(Event:Flush_L1L2,in_msg.LineAddress,
+                    L1Dcache_entry, TBEs[in_msg.LineAddress]);
+          }
+          // Is Line in Process of Being Installed?
+          else if(TBEs.isPresent(in_msg.LineAddress)){
+            trigger(Event:Flush_Waiting,in_msg.LineAddress,
+                    L1Dcache_entry, TBEs[in_msg.LineAddress]);
+          }
+          
+          //Pass Invalidation to L2
+          DPRINTF(RubySlicc, "Directly Issuing Flush to L2 - Addr %#x\n",in_msg.LineAddress,getState(TBEs[in_msg.LineAddress], L1Dcache_entry, in_msg.LineAddress) );
+          trigger(Event:Flush_L2,in_msg.LineAddress,
+                  L1Dcache_entry, TBEs[in_msg.LineAddress]);
+        }
 
 
         // Check for data access to blocks in I-cache and ifetchs to blocks in D-cache
@@ -1601,6 +1637,31 @@ MessageBuffer * mandatoryQueue;
       sequencer.readCallback(address, cache_entry.DataBlk);
     }
 
+  //***********************************
+  // FLUSH ACTIONS
+  //***********************************
+  
+  action(su_screwed_up, "su",
+         desc="Dummy Function called when something Bad Happens.")
+    {
+      DPRINTF(RubySlicc, "**We screwed up! Debug for Addr:%#x! \n",address);
+      assert(false);
+    }
+  
+  action(ipf_issuePUTFLUSH,"ipf",desc="Send PUTflush packet to L2")
+    {
+      enqueue(requestL1Network_out, RequestMsg, l1_response_latency) {
+        
+      out_msg.addr := address;
+      out_msg.Type := CoherenceRequestType:PUTFLUSH;
+      out_msg.Requestor:= machineID;
+        out_msg.Destination.add(mapAddressToRange(address, MachineType:L2Cache,
+                                                  l2_select_low_bit, l2_select_num_bits, intToID(0)));
+      out_msg.MessageSize := MessageSizeType:Response_Control;    
+        
+      }
+      sequencer.writeCallback(address);
+    }
 
   //***********************************
   // CLEANUP ACTIONS
@@ -2089,7 +2150,7 @@ MessageBuffer * mandatoryQueue;
     k_popMandatoryQueue;
   }
 
-  transition(NP,Delay_Load_RaceCondition){
+  transition(NP,{Delay_Load_RaceCondition,Flush_Waiting}){
     zzm_recycleMandatoryQueue;
   }
 
@@ -2842,6 +2903,47 @@ MessageBuffer * mandatoryQueue;
     kd_wakeUpDependents;        
   }
 
+  //***********************************
+  // FLUSH TRANSITIONS
+  //***********************************
+  
+  //--------------------------------------------------------------------------------
+  //FlushL1L2
+  
+  transition({NP, I, S, X}, Flush_L1L2, I) {
+    ff_deallocateL1CacheBlock;
+    ipf_issuePUTFLUSH;
+    k_popMandatoryQueue;
+   
+  }
+ 
+ 
+  transition({IS, IM, IX, IS_I, M_I, SM, SINK_WB_ACK, PF_IS, PF_IS_I, PF_IM, PF_SM}, Flush_L1L2) {
+    zzm_recycleMandatoryQueue;
+  }
+ 
+  transition(E, Flush_L1L2, M_I) {
+    i_allocateTBE;
+    g_issuePUTX;   // putx to convey that we no-longer hold it.
+    ff_deallocateL1CacheBlock;
+    ipf_issuePUTFLUSH;
+    k_popMandatoryQueue;
+  }
+  
+  transition(M, Flush_L1L2,M_I) {
+    //su_screwed_up;
+    //k_popMandatoryQueue;
+    i_allocateTBE;
+    g_issuePUTX;   // send data, but hold in case forwarded request
+    ff_deallocateL1CacheBlock;
+    zzm_recycleMandatoryQueue;
+  }
+  
+  //FlushL2
+  transition({NP, I,X}, Flush_L2) {
+    ipf_issuePUTFLUSH;
+    k_popMandatoryQueue;
+  }
 
 
 }

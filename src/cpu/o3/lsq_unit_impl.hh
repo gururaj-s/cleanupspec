@@ -2380,7 +2380,7 @@ LSQUnit<Impl>::issueBufferedCleanupReqs()
   }
     
   // Check if squashfrom_seq == (ROB-done +1), if yes then proceed. Else, return false;
-  if(iewStage->getDoneSeqNumCommit(lsqID) < (squashfrom_seqnum -1) ){ //TODO */
+  if( (iewStage->getDoneSeqNumCommit(lsqID) < (squashfrom_seqnum -1)) && (iewStage->getDoneSeqNumCommit(lsqID) > 0) ){ 
     DPRINTF(LSQUnit,"**Squash Buffer Waiting for Done Seq Num : %lli to reach one before Squash Head : %lli.\n", \
             iewStage->getDoneSeqNumCommit(lsqID), squashfrom_seqnum);
     return false;

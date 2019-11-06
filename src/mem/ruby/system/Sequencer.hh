@@ -72,6 +72,8 @@ struct SBE // SpecBufferEntry
   SBB blocks[2];
 };
 
+static DataBlock default_Data;
+
 class Sequencer : public RubyPort
 {
   public:
@@ -86,7 +88,7 @@ class Sequencer : public RubyPort
     void regStats();
 
     void writeCallback(Addr address,
-                       DataBlock& data,
+                       DataBlock& data = default_Data,
                        const bool externalHit = false,
                        const MachineType mach = MachineType_NUM,
                        const Cycles initialRequestTime = Cycles(0),

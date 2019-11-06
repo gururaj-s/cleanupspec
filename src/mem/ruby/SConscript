@@ -40,6 +40,7 @@ from gem5_scons import Transform
 Import('*')
 
 DebugFlag('ProtocolTrace')
+DebugFlag('RubyReadLatency')
 DebugFlag('RubyCache')
 DebugFlag('RubyCacheTrace')
 DebugFlag('RubyDma')

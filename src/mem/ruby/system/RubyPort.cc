@@ -260,33 +260,67 @@ RubyPort::MemSlavePort::recvTimingReq(PacketPtr pkt)
 
     // ruby doesn't support cache maintenance operations at the
     // moment, as a workaround, we respond right away
+    
     if (pkt->req->isCacheMaintenance()) {
+      /*
         warn_once("Cache maintenance operations are not supported in Ruby.\n");
         pkt->makeResponse();
         schedTimingResp(pkt, curTick());
         return true;
-    }
+      */
+
+      DPRINTF(RubyPort, "%llu: Cache maintenance operations are not supported in Ruby.\n ",curTick());
+
+      //Added by Gururaj to make Ruby support Cache-Flushes.
+      //CleanInvalidReq packets changed to FlushReq      
+      PacketPtr oldpkt = pkt; 
+      if(pkt->cmd == MemCmd::CleanInvalidReq){
+        RequestPtr new_req = new Request(*(oldpkt->req));
+        pkt = new Packet(new_req,MemCmd::FlushReq);
+        // Submit the ruby request
+        assert(getOffset(pkt->getAddr()) + pkt->getSize() <=
+               RubySystem::getBlockSizeBytes());        
+        RequestStatus requestStatus = ruby_port->makeRequest(pkt);
+        if (requestStatus == RequestStatus_Issued) {
+          pkt->pushSenderState(new SenderState(this));
+          DPRINTF(RubyPort, "Request %s 0x%x issued\n", pkt->cmdString(),
+                  pkt->getAddr());         
+        } else {
+          DPRINTF(RubyPort,
+                  "Request for address %#x did not issued because %s\n",
+                  pkt->getAddr(), RequestStatus_to_string(requestStatus));          
+          addToRetryList();
+          return false;
+        }        
+      }
+      
+      //Send response
+      oldpkt->makeResponse();
+      schedTimingResp(oldpkt, curTick());
+      return true;            
+    }    
+    
     // Check for pio requests and directly send them to the dedicated
     // pio port.
     if (pkt->cmd != MemCmd::MemFenceReq) {
-        if (!isPhysMemAddress(pkt->getAddr())) {
-            assert(ruby_port->memMasterPort.isConnected());
-            DPRINTF(RubyPort, "Request address %#x assumed to be a "
-                    "pio address\n", pkt->getAddr());
+      if (!isPhysMemAddress(pkt->getAddr())) {
+        assert(ruby_port->memMasterPort.isConnected());
+        DPRINTF(RubyPort, "Request address %#x assumed to be a "
+                "pio address\n", pkt->getAddr());
 
-            // Save the port in the sender state object to be used later to
-            // route the response
-            pkt->pushSenderState(new SenderState(this));
+        // Save the port in the sender state object to be used later to
+        // route the response
+        pkt->pushSenderState(new SenderState(this));
 
-            // send next cycle
-            RubySystem *rs = ruby_port->m_ruby_system;
-            ruby_port->memMasterPort.schedTimingReq(pkt,
-                curTick() + rs->clockPeriod());
-            return true;
-        }
+        // send next cycle
+        RubySystem *rs = ruby_port->m_ruby_system;
+        ruby_port->memMasterPort.schedTimingReq(pkt,
+                                                curTick() + rs->clockPeriod());
+        return true;
+      }
 
-        assert(getOffset(pkt->getAddr()) + pkt->getSize() <=
-               RubySystem::getBlockSizeBytes());
+      assert(getOffset(pkt->getAddr()) + pkt->getSize() <=
+             RubySystem::getBlockSizeBytes());
     }
 
     // Submit the ruby request
