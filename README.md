@@ -46,6 +46,6 @@ This is built on top of [InvisiSpec's fork of Gem5](https://github.com/mjyan0720
   * Modified "DerivO3" classes to provide Cache-Cleanup for squashed loads on a processor mis-prediction.
   * Modified the "MESI_Two_Level" Ruby cache design to support new Cleanup operations.
   * Added side-effect tracking data-structures in MSHRs of  L1-Cache / L2-Cache (in Ruby) and in Load-Queue of processor (in DerivO3).
-  * Code is tested with SPEC-CPU2006 benchmarks in Single Core SE-mode on Gem5
+  * Code is tested on a subset of SPEC-CPU2006 benchmarks (listed in exp_script/bench_common.pl) in Single Core SE-mode on Gem5.
 
    
